@@ -1,105 +1,159 @@
-📘 Simple RAG Pipeline (Free & Local)
-A lightweight, fully local Retrieval‑Augmented Generation (RAG) pipeline built in Google Colab using:
+# 🔍 Simple RAG — 100% Free, No API Key Required
 
-SentenceTransformers for embeddings
+A beginner-friendly implementation of **Retrieval-Augmented Generation (RAG)** that runs entirely for free inside Google Colab — no OpenAI key, no paid APIs, no cloud credits needed.
 
-FAISS for vector search
+> Based on the guide: [Simple RAG Explained – machinelearningplus.com](https://machinelearningplus.com/gen-ai/simple-rag-explained-a-beginners-guide-to-retrieval-augmented-generation/)
 
-FLAN‑T5 for answer generation
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/)
 
-No API keys
+---
 
-No paid services
+## What is RAG?
 
-Runs on CPU or GPU
+**Retrieval-Augmented Generation** grounds an LLM's answers in your own documents rather than relying solely on what the model learned during training. This reduces hallucinations and lets you query any custom knowledge base.
 
-This project demonstrates how to build a minimal but functional RAG system from scratch — ideal for learning, experimenting, or adapting into larger applications.
+```
+User Question
+     │
+     ▼
+[ Embed Question ] ──► [ Vector DB Search ] ──► Top-K Chunks
+                                                      │
+                                                      ▼
+                                          [ LLM: context + question ]
+                                                      │
+                                                      ▼
+                                                   Answer
+```
 
-🚀 Features
-🔍 Semantic search using FAISS (inner‑product / cosine similarity)
+The three stages are:
 
-📚 Context retrieval from your own documents
+1. **Index** — split documents into chunks, embed each chunk, store in a vector database
+2. **Retrieve** — embed the user's query, find the most similar chunks by cosine similarity
+3. **Generate** — pass the retrieved chunks as context to an LLM and produce a grounded answer
 
-🧠 FLAN‑T5 generation (encoder‑decoder model, free & open‑source)
+---
 
-🧩 End‑to‑end RAG pipeline: Retrieve → Build Prompt → Generate
+## Free Stack (vs. the Paid Original)
 
-💻 Works on CPU (GPU optional)
+| Component | Original (paid) | This repo (free) |
+|-----------|----------------|------------------|
+| Embeddings | OpenAI `text-embedding-ada-002` | `sentence-transformers/all-MiniLM-L6-v2` |
+| Vector store | External (OpenAI-managed) | `FAISS` — local, in-memory |
+| LLM | `gpt-3.5-turbo` | `google/flan-t5-base` via HuggingFace |
+| Cost | ~$0.01–0.10 per run | **$0.00** |
 
-📝 Clean, readable code designed for learning
+---
 
-📂 Project Structure
-Code
-simple_rag_free.ipynb     # Main Colab notebook
-data/                     # (Optional) Your text files or chunks
-README.md                 # Project documentation
-🛠️ Installation
-Inside Colab:
+## Quickstart
 
-bash
-!pip install transformers sentence-transformers faiss-cpu
-🧠 Models Used
-🔹 Embeddings
-sentence-transformers/all-MiniLM-L6-v2  
-Fast, lightweight, great for semantic search.
+### Run in Google Colab (recommended)
 
-🔹 LLM (Generator)
-google/flan-t5-base  
-Open‑source, instruction‑tuned, works well for short factual answers.
+1. Open `simple_rag_free.ipynb` in [Google Colab](https://colab.research.google.com/)
+2. Run **Cell 1** to install dependencies (takes ~1 min)
+3. **Runtime → Restart session** after installation
+4. Run all remaining cells from the top
 
-🧮 How It Works
-1. Embed your documents
-python
-embeddings = embedder.encode(documents, convert_to_numpy=True)
-faiss.normalize_L2(embeddings)
-index.add(embeddings)
-2. Retrieve top‑k relevant chunks
-python
-scores, indices = index.search(query_emb, k)
-3. Build a prompt
-python
-prompt = f"""
-Answer the question using ONLY the context below...
+### Run locally
 
-Context:
-{context}
+```bash
+git clone https://github.com/your-username/simple-rag-free.git
+cd simple-rag-free
 
-Question: {query}
+pip install sentence-transformers faiss-cpu "transformers==4.44.2" accelerate matplotlib
+jupyter notebook simple_rag_free.ipynb
+```
 
-Answer below:
-"""
-4. Generate an answer (FLAN‑T5)
-python
-inputs = tokenizer(prompt, return_tensors="pt").to(device)
-outputs = model.generate(**inputs, max_new_tokens=200)
-answer = tokenizer.decode(outputs[0], skip_special_tokens=True)
-🧪 Example
-Question:
+> **Note on `transformers` version:** Versions 4.52+ removed `text2text-generation` from the pipeline registry. Either pin to `transformers==4.44.2`, or use the direct `AutoModelForSeq2SeqLM` approach described in the notebook's troubleshooting section.
 
-What is the difference between supervised and unsupervised learning?
+---
 
-Retrieved Context:
+## Notebook Walkthrough
 
-Supervised learning uses labelled data
+| Step | Description |
+|------|-------------|
+| 0 | Install dependencies |
+| 1 | Import libraries |
+| 2 | Define the knowledge base (customisable) |
+| 3 | Chunk documents with sliding window + overlap |
+| 4 | Embed chunks using `all-MiniLM-L6-v2` |
+| 5 | Build a FAISS cosine similarity index |
+| 6 | Retriever function — embed query, search index |
+| 7 | Load `flan-t5-base` LLM (no API key) |
+| 8 | Full RAG pipeline: Retrieve → Prompt → Generate |
+| 9 | Ask questions and see answers with sources |
+| 10 | Visualise retrieval scores with matplotlib |
+| 11 | Instructions for using your own documents |
 
-Unsupervised learning finds patterns in unlabelled data
+---
 
-Generated Answer:
+## Using Your Own Documents
 
-Supervised learning trains on labelled input‑output pairs, while unsupervised learning discovers hidden patterns in unlabelled data.
+In **Step 2**, replace the `documents` list with your own text:
 
-⚠️ Notes & Tips
-FLAN‑T5 must be loaded using AutoModelForSeq2SeqLM, not the text-generation pipeline.
+```python
+documents = [
+    "Your first paragraph or document here...",
+    "Your second paragraph here...",
+    # add as many as you like
+]
+```
 
-If running on CPU, replace .to("cuda") with .to("cpu").
+Or load from a file:
 
-Avoid ending prompts with a colon (Answer:) — T5 sometimes outputs nothing.
+```python
+with open("my_document.txt", "r") as f:
+    raw_text = f.read()
+documents = raw_text.split("\n\n")  # split on blank lines
+```
 
-FAISS inner‑product search requires normalized vectors for cosine similarity.
+Then re-run from Step 3 onwards to rebuild the index.
 
-📜 License
-MIT License — free to use, modify, and share.
+---
 
-🤝 Contributing
-Pull requests are welcome!
-Feel free to open issues for improvements or questions.
+## Improving Answer Quality
+
+The default `flan-t5-base` model is intentionally small so it runs on CPU. For better answers:
+
+- **Better model, same approach:** Swap `flan-t5-base` → `flan-t5-large` or `flan-t5-xl` (needs GPU — use *Runtime → Change runtime type → T4 GPU* in Colab)
+- **Free HuggingFace Inference API:** Use a larger model like `mistralai/Mistral-7B-Instruct-v0.1` via the HuggingFace API with a free token — no local GPU needed
+- **Tune chunking:** Adjust `chunk_size` and `overlap` in `chunk_text()` to match your document style
+- **Tune retrieval:** Increase `k` (number of retrieved chunks) for broader context
+
+---
+
+## Key Concepts Demonstrated
+
+- **Semantic chunking** — why size and overlap matter for retrieval quality
+- **Dense embeddings** — how text becomes a searchable vector
+- **Cosine similarity search** — how FAISS finds the most relevant passages
+- **Prompt engineering** — how retrieved context is injected to ground the LLM
+- **Hallucination reduction** — the model is constrained to answer only from retrieved docs
+
+---
+
+## Requirements
+
+```
+sentence-transformers
+faiss-cpu
+transformers==4.44.2
+accelerate
+matplotlib
+```
+
+Python 3.9+ recommended.
+
+---
+
+## References
+
+- [Simple RAG Explained – machinelearningplus.com](https://machinelearningplus.com/gen-ai/simple-rag-explained-a-beginners-guide-to-retrieval-augmented-generation/)
+- [sentence-transformers documentation](https://www.sbert.net/)
+- [FAISS documentation](https://faiss.ai/)
+- [google/flan-t5-base on HuggingFace](https://huggingface.co/google/flan-t5-base)
+
+---
+
+## License
+
+MIT
